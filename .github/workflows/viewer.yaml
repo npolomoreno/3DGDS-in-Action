@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   GDS2PNG:
-    runs-on: ubuntu-20.04  # Run the job on an Ubuntu 20.04 environment
+    runs-on: ubuntu-22.04  # Run the job on an Ubuntu 20.04 environment
 
     steps:
 
