@@ -25,34 +25,41 @@ SKY130_LABEL_LAYERS = [
     (71, 5),   # met4.label
 ]
 
-def get_final_gds_top_cells():
-    """
-    Reads the first GDS file in the directory and returns the top-level cell.
-    """
+def choose_gds_file():
+    """Prompts the user to select a GDS file from the available options."""
+    gds_files = glob.glob(os.path.join(GDS_DIR, "*.gds"))
+    if not gds_files:
+        raise FileNotFoundError("No GDS files found in the directory.")
+    
+    print("Available GDS files:")
+    for i, gds_file in enumerate(gds_files, 1):
+        print(f"[{i}] {os.path.basename(gds_file)}")
+    
+    choice = int(input("Select a GDS file by number: ")) - 1
+    if choice < 0 or choice >= len(gds_files):
+        raise ValueError("Invalid selection.")
+    
+    selected_file = gds_files[choice]
+    logging.info(f"Selected GDS file: {selected_file}")
+    return selected_file
+
+def get_final_gds_top_cells(gds_file):
+    """Reads the specified GDS file and returns the top-level cell."""
     try:
-        gds_files = glob.glob(os.path.join(GDS_DIR, "*.gds"))
-        if not gds_files:
-            raise FileNotFoundError("No GDS files found in the directory.")
-        
-        gds_file = gds_files[0]
-        logging.info(f"Found GDS file: {gds_file}")
-        
         library = gdstk.read_gds(gds_file)
         top_cells = library.top_level()
         if not top_cells:
             raise ValueError("No top-level cells found in the GDS file.")
-        
         return top_cells[0]
     except Exception as e:
         logging.error(f"Error while processing the GDS file: {e}")
         raise
 
 def create_svg_and_png():
-    """
-    Generates an SVG and PNG file from the GDS layout.
-    """
+    """Generates an SVG and PNG file from the GDS layout."""
     try:
-        top_cell = get_final_gds_top_cells()
+        gds_file = choose_gds_file()
+        top_cell = get_final_gds_top_cells(gds_file)
         
         # Filter out specific layers (e.g., text labels)
         top_cell.filter(SKY130_LABEL_LAYERS)
@@ -72,9 +79,7 @@ def create_svg_and_png():
         raise
 
 def convert_svg_to_png(svg_file, png_file):
-    """
-    Converts an SVG file to PNG using rsvg-convert or cairosvg as a fallback.
-    """
+    """Converts an SVG file to PNG using rsvg-convert or cairosvg as a fallback."""
     try:
         cmd = f"rsvg-convert --unlimited {svg_file} -o {png_file} --no-keep-image-data"
         result = subprocess.run(cmd, shell=True, capture_output=True)
@@ -89,10 +94,8 @@ def convert_svg_to_png(svg_file, png_file):
         cairosvg.svg2png(url=svg_file, write_to=png_file)
 
 def compress_png(input_png, output_png):
-    """
-    Compresses a PNG file using pngquant. If pngquant is unavailable, 
-    uses the intermediate uncompressed PNG file.
-    """
+    """Compresses a PNG file using pngquant. If pngquant is unavailable, 
+    uses the intermediate uncompressed PNG file."""
     try:
         quality = "0-30"
         cmd = f"pngquant --quality {quality} --speed 1 --nofs --strip --force --output {output_png} {input_png}"
